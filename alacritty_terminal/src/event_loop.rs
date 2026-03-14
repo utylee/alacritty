@@ -9,7 +9,8 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread::JoinHandle;
-use std::time::Instant;
+// use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use log::error;
 use polling::{Event as PollingEvent, Events, PollMode, Poller};

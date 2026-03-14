@@ -110,7 +110,7 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
 				bytes
 			};
 
-			eprintln!("DBG built_sequence bytes={:?}", bytes);
+			// eprintln!("DBG built_sequence bytes={:?}", bytes);
 			bytes
 		} else {
 			let text_mods: ModifiersState =
@@ -126,7 +126,7 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
 			}
 
 			bytes.extend_from_slice(raw_text.as_bytes());
-			eprintln!("DBG fallback_text bytes={:?}", bytes);
+			// eprintln!("DBG fallback_text bytes={:?}", bytes);
 			bytes
 		};
 		
@@ -303,8 +303,6 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
         // Don't suppress char if no bindings were triggered.
         let mut suppress_chars = None;
 	
-		eprintln!("DBG MY PATCH IS RUNNING");
-
         // We don't want the key without modifier, because it means something else most of
         // the time. However what we want is to manually lowercase the character to account
 
