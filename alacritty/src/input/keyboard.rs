@@ -28,6 +28,11 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
         let mode = *self.ctx.terminal().mode();
         let mods = self.ctx.modifiers().state();
 
+		//utylee
+		let raw_text: String = key.text_with_all_modifiers().unwrap_or_default().to_string();
+		let key: KeyEvent = normalized_key_event(key, mods);
+		//
+
         if key.state == ElementState::Released {
             if self.ctx.inline_search_state().char_pending {
                 self.ctx.window().set_ime_inhibitor(ImeInhibitor::VI, false);
@@ -40,7 +45,10 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
 
         // All key bindings are disabled while a hint is being selected.
         if self.ctx.display().hint_state.active() {
-            for character in text.chars() {
+			//utylee
+            // for character in text.chars() {
+            for character in raw_text.chars() {
+			//
                 self.ctx.hint_input(character);
             }
             return;
@@ -49,7 +57,10 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
         // First key after inline search is captured.
         let inline_state = self.ctx.inline_search_state();
         if inline_state.char_pending {
-            self.ctx.inline_search_input(text);
+			//utylee
+            // self.ctx.inline_search_input(text);
+            self.ctx.inline_search_input(&raw_text);
+			//
             return;
         }
 
@@ -62,7 +73,10 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
         }
 
         if self.ctx.search_active() {
-            for character in text.chars() {
+			//utylee
+            // for character in text.chars() {
+            for character in raw_text.chars() {
+			//
                 self.ctx.search_input(character);
             }
 
@@ -75,25 +89,116 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
         }
 
         // Mask `Alt` modifier from input when we won't send esc.
-        let mods = if self.alt_send_esc(&key, text) { mods } else { mods & !ModifiersState::ALT };
+		//
+		// utylee
+        // let mods = if self.alt_send_esc(&key, text) { mods } else { mods & !ModifiersState::ALT };
+        //let build_key_sequence = Self::should_build_sequence(&key, text, mode, mods);
+	 	let original_mods = mods;	
+		let build_key_sequence =
+    		Self::should_build_sequence(&key, &raw_text, mode, original_mods);
 
-        let build_key_sequence = Self::should_build_sequence(&key, text, mode, mods);
-        let is_modifier_key = Self::is_modifier_key(&key);
+		let is_modifier_key: bool = Self::is_modifier_key(&key);
 
-        let bytes = if build_key_sequence {
-            build_sequence(key, mods, mode)
-        } else {
-            let mut bytes = Vec::with_capacity(text.len() + 1);
-            if mods.alt_key() {
-                bytes.push(b'\x1b');
-            }
+		//utylee
+		let legacy_bytes: Option<Vec<u8>> = legacy_ctrl_alt_textual_sequence(&key, original_mods);
 
-            bytes.extend_from_slice(text.as_bytes());
-            bytes
-        };
+		let bytes: Vec<u8> = if build_key_sequence {
+			let bytes = build_sequence(key, original_mods, mode);
+			let bytes = if bytes.is_empty() {
+				legacy_bytes.unwrap_or(bytes)
+			} else {
+				bytes
+			};
+
+			eprintln!("DBG built_sequence bytes={:?}", bytes);
+			bytes
+		} else {
+			let text_mods: ModifiersState =
+				if self.alt_send_esc(&key, &raw_text) {
+					original_mods
+				} else {
+					original_mods & !ModifiersState::ALT
+				};
+
+			let mut bytes: Vec<u8> = Vec::with_capacity(raw_text.len() + 1);
+			if text_mods.alt_key() {
+				bytes.push(b'\x1b');
+			}
+
+			bytes.extend_from_slice(raw_text.as_bytes());
+			eprintln!("DBG fallback_text bytes={:?}", bytes);
+			bytes
+		};
+		
+
+		// let bytes: Vec<u8> = if build_key_sequence {
+		// 	let bytes = build_sequence(key, original_mods, mode);
+		// 	eprintln!("DBG built_sequence bytes={:?}", bytes);
+		// 	bytes
+		// } else {
+		// 	let text_mods: ModifiersState =
+		// 		if self.alt_send_esc(&key, &raw_text) {
+		// 			original_mods
+		// 		} else {
+		// 			original_mods & !ModifiersState::ALT
+		// 		};
+
+		// 	let mut bytes: Vec<u8> = Vec::with_capacity(raw_text.len() + 1);
+		// 	if text_mods.alt_key() {
+		// 		bytes.push(b'\x1b');
+		// 	}
+
+		// 	bytes.extend_from_slice(raw_text.as_bytes());
+		// 	eprintln!("DBG fallback_text bytes={:?}", bytes);
+		// 	bytes
+		// };
+
+		
+        //let mods = if self.alt_send_esc(&key, &raw_text) { mods } else { mods & !ModifiersState::ALT };
+
+        //let build_key_sequence = Self::should_build_sequence(&key, &raw_text, mode, mods);
+
+		//eprintln!(
+			//"DBG seq_decision build={} logical={:?} raw_text={:?} mods={:?} mode={:?}",
+			//build_key_sequence,
+			//key.logical_key,
+			//raw_text,
+			//mods,
+			//mode
+		//);
+		////
+
+        //let is_modifier_key = Self::is_modifier_key(&key);
+
+        //let bytes = if build_key_sequence {
+			////utylee
+        //    // build_sequence(key, mods, mode)
+			//let bytes = build_sequence(key, mods, mode);
+			//eprintln!("DBG built_sequence bytes={:?}", bytes);
+			//bytes
+			////
+        //} else {
+			////utylee
+        //    // let mut bytes = Vec::with_capacity(text.len() + 1);
+        //    let mut bytes = Vec::with_capacity(&raw_text.len() + 1);
+			////
+        //    if mods.alt_key() {
+        //        bytes.push(b'\x1b');
+        //    }
+
+			////utylee
+        //    // bytes.extend_from_slice(text.as_bytes());
+        //    bytes.extend_from_slice(&raw_text.as_bytes());
+			//eprintln!("DBG fallback_text bytes={:?}", bytes);
+			////
+        //    bytes
+        //};
 
         // Write only if we have something to write.
         if !bytes.is_empty() {
+			//utylee
+			// eprintln!("DBG write_to_pty bytes={:?}", bytes);
+			//
             // Don't clear selection/scroll down when writing escaped modifier keys.
             if !is_modifier_key {
                 self.ctx.on_terminal_input_start();
@@ -151,6 +256,17 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
             return true;
         }
 
+		//utylee
+		if cfg!(windows)
+			&& mods.control_key()
+			&& mods.alt_key()
+			&& matches!(key.logical_key, Key::Unidentified(_))
+			&& matches!(key.key_without_modifiers(), Key::Character(_))
+		{
+			return true;
+		}
+		//
+
         let disambiguate = mode.contains(TermMode::DISAMBIGUATE_ESC_CODES)
             && (key.logical_key == Key::Named(NamedKey::Escape)
                 || key.location == KeyLocation::Numpad
@@ -176,15 +292,49 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
     /// The provided mode, mods, and key must match what is allowed by a binding
     /// for its action to be executed.
     fn process_key_bindings(&mut self, key: &KeyEvent) -> bool {
+
+		////utylee
+		//let key_event = key;
+		////
+
         let mode = BindingMode::new(self.ctx.terminal().mode(), self.ctx.search_active());
         let mods = self.ctx.modifiers().state();
 
         // Don't suppress char if no bindings were triggered.
         let mut suppress_chars = None;
+	
+		eprintln!("DBG MY PATCH IS RUNNING");
 
         // We don't want the key without modifier, because it means something else most of
         // the time. However what we want is to manually lowercase the character to account
-        // for both small and capital letters on regular characters at the same time.
+
+		////utylee
+		//let is_windows_ctrl_alt =
+		//	cfg!(windows)
+		//	&& mods.intersects(ModifiersState::CONTROL)
+		//	&& mods.intersects(ModifiersState::ALT);
+
+		//let is_macos_alt =
+		//	cfg!(target_os = "macos")
+		//	&& mods.intersects(ModifiersState::ALT);
+
+		//let logical_key: Key = if is_windows_ctrl_alt || is_macos_alt {
+		//	eprintln!(
+		//		"DBG FALLBACK TAKEN raw={:?} no_mod={:?} mods={:?}",
+		//		key.logical_key,
+		//		key.key_without_modifiers(),
+		//		mods
+		//	);
+		//	key.key_without_modifiers()
+		//} else if let Key::Character(ch) = key.logical_key.as_ref() {
+		//	eprintln!("DBG CHARACTER BRANCH TAKEN raw={:?}", key.logical_key);
+		//	Key::Character(ch.to_lowercase().into())
+		//} else {
+		//	eprintln!("DBG RAW LOGICAL BRANCH TAKEN raw={:?}", key.logical_key);
+		//	key.logical_key.clone()
+		//};
+		
+        //// for both small and capital letters on regular characters at the same time.
         let logical_key = if let Key::Character(ch) = key.logical_key.as_ref() {
             // Match `Alt` bindings without `Alt` being applied, otherwise they use the
             // composed chars, which are not intuitive to bind.
@@ -196,13 +346,42 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
             if (cfg!(target_os = "macos") || (cfg!(windows) && mods.control_key()))
                 && mods.alt_key()
             {
+				////utylee
+				//eprintln!(
+				//	"DBG WINDOWS CTRL+ALT FALLBACK TAKEN raw={:?} no_mod={:?}",
+				//	key.logical_key,
+				//	key.key_without_modifiers()
+				//);
+
                 key.key_without_modifiers()
+			////utylee
+            //} else if let Key::Character(ch) = key.logical_key.as_ref() {
+			//	eprintln!("DBG CHARACTER BRANCH TAKEN raw={:?}", key.logical_key);
+			//	Key::Character(ch.to_lowercase().into())
+			//} else {
+			//	key.logical_key.clone()
+			//}
+			
             } else {
                 Key::Character(ch.to_lowercase().into())
             }
+			
         } else {
+			//utylee
+			// eprintln!("DBG RAW LOGICAL BRANCH TAKEN raw={:?}", key.logical_key);
+			//
             key.logical_key.clone()
         };
+
+		////utylee
+		//println!(
+		//	"DBG effective logical_key={:?}, raw logical={:?}, no_mod={:?}, mods={:?}",
+		//	logical_key,
+		//	key.logical_key,
+		//	key.key_without_modifiers(),
+		//	mods
+		//);
+		////
 
         // Get the action of a key binding.
         let mut binding_action = |binding: &KeyBinding| {
@@ -212,6 +391,17 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
                     BindingKey::Keycode { key: code.clone(), location: key.location.into() }
                 },
             };
+
+			////utylee
+			//println!(
+			//	"DBG trigger={:?}, built_key={:?}, logical_key={:?}, raw_logical={:?}, mods={:?}",
+			//	binding.trigger,
+			//	key,
+			//	logical_key,
+			//	key_event.logical_key,
+			//	mods
+			//);
+			////
 
             if binding.is_triggered_by(mode, mods, &key) {
                 // Pass through the key if any of the bindings has the `ReceiveChar` action.
@@ -287,6 +477,65 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
         }
     }
 }
+
+
+//utylee
+
+fn legacy_ctrl_alt_textual_sequence(
+    key: &KeyEvent,
+    mods: ModifiersState,
+) -> Option<Vec<u8>> {
+    if !cfg!(windows) || !mods.control_key() || !mods.alt_key() {
+        return None;
+    }
+
+    let ch: char = match key.logical_key.as_ref() {
+        Key::Character(text) if text.chars().count() == 1 => {
+            text.chars().next()?.to_ascii_lowercase()
+        }
+        _ => match key.key_without_modifiers().as_ref() {
+            Key::Character(text) if text.chars().count() == 1 => {
+                text.chars().next()?.to_ascii_lowercase()
+            }
+            _ => return None,
+        },
+    };
+
+    let ctrl: u8 = match ch {
+        'a'..='z' => (ch as u8 - b'a') + 1,
+        '@' => 0,
+        '[' => 27,
+        '\\' => 28,
+        ']' => 29,
+        '^' => 30,
+        '_' => 31,
+        '?' => 127,
+        _ => return None,
+    };
+
+    Some(vec![0x1b, ctrl])
+}
+
+fn normalized_logical_key(key: &KeyEvent, mods: ModifiersState) -> Key {
+    if cfg!(windows)
+        && mods.control_key()
+        && mods.alt_key()
+        && matches!(key.logical_key, Key::Unidentified(_))
+    {
+        return key.key_without_modifiers();
+    }
+
+    if let Key::Character(ch) = key.logical_key.as_ref() {
+        Key::Character(ch.to_lowercase().into())
+    } else {
+        key.logical_key.clone()
+    }
+}
+fn normalized_key_event(mut key: KeyEvent, mods: ModifiersState) -> KeyEvent {
+    key.logical_key = normalized_logical_key(&key, mods);
+    key
+}
+//
 
 /// Build a key's keyboard escape sequence based on the given `key`, `mods`, and `mode`.
 ///
