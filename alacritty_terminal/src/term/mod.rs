@@ -1258,7 +1258,8 @@ impl<T: EventListener> Handler for Term<T> {
         match intermediate {
             None => {
                 trace!("Reporting primary device attributes");
-                let text = String::from("\x1b[?6c");
+                // let text = String::from("\x1b[?6c");
+                let text = String::from("\x1b[?65c");
                 self.event_proxy.send_event(Event::PtyWrite(text));
             },
             Some('>') => {
