@@ -1383,7 +1383,14 @@ impl<'a, N: Notify + 'a, T: EventListener> input::ActionContext<T> for ActionCon
             // We remove `\x1b` to ensure it's impossible for the pasted text to write the bracketed
             // paste end escape `\x1b[201~` and `\x03` since some shells incorrectly terminate
             // bracketed paste when they receive it.
-            let filtered = text.replace(['\x1b', '\x03'], "");
+
+            //utylee
+            // let filtered = text.replace(['\x1b', '\x03'], "");
+            let filtered = text
+                .replace("\r\n", "\n")
+                .replace('\r', "")
+                .replace(['\x1b', '\x03'], "");
+            //<---
             self.write_to_pty(filtered.into_bytes());
 
             self.write_to_pty(&b"\x1b[201~"[..]);
